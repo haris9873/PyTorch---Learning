@@ -26,15 +26,17 @@ class FashionClassifier(nn.Module):
         self.fc2 = nn.Linear(256, 128)
         self.fc3 = nn.Linear(128, 64)
         self.fc4 = nn.Linear(64, 10)
+        # Dropout module with 0.2 drop probability
+        self.dropout = nn.Dropout(p=0.2)
         
     def forward(self, x):
         # make sure input tensor is flattened
         x = x.view(x.shape[0], -1)
-        
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = F.relu(self.fc3(x))
-        x = F.log_softmax(self.fc4(x), dim=1)
+        #dropout layer, randomly zeroing some of the elements
+        x = self.dropout(F.relu(self.fc1(x)))
+        x = self.dropout(F.relu(self.fc2(x)))
+        x = self.dropout(F.relu(self.fc3(x)))
+        x = self.dropout(F.log_softmax(self.fc4(x), dim=1))
         
         return x
 
@@ -43,7 +45,10 @@ model = FashionClassifier()
 criterion = nn.NLLLoss() #Negative Log Likelihood Loss
 optimizer = optim.Adam(model.parameters(), lr=0.003)  #Adam optimizer
 
-epochs = 5
+train_losses, test_losses = [], []
+step = 0
+
+epochs = 30
 for e in range(epochs):
     running_loss = 0
     for images, labels in trainloader:
@@ -57,7 +62,34 @@ for e in range(epochs):
         
         running_loss += loss.item()
     else:
-        print(f"Training loss: {running_loss/len(trainloader)}")
+        test_loss = 0
+        accuracy = 0
+        
+        # Turn off gradients for validation, saves memory and computations
+        with torch.no_grad():
+            model.eval()
+            for images, labels in testloader:
+                log_ps = model(images)
+                test_loss += criterion(log_ps, labels)
+                 
+                ps = torch.exp(log_ps) #Probabilities
+                top_p, top_class = ps.topk(1, dim=1) #Top class prediction
+                equals = top_class == labels.view(*top_class.shape) #Check for equality
+                accuracy += torch.mean(equals.type(torch.FloatTensor)) #Calculate accuracy
+        
+        model.train()
+        
+        train_losses.append(running_loss/len(trainloader))
+        test_losses.append(test_loss/len(testloader))
+
+        print("Epoch: {}/{}.. ".format(e+1, epochs),
+              "Training Loss: {:.3f}.. ".format(train_losses[-1]),
+              "Test Loss: {:.3f}.. ".format(test_losses[-1]),
+              "Test Accuracy: {:.3f}".format(accuracy/len(testloader)))
+        
+plt.plot(train_losses, label='Training loss')
+plt.plot(test_losses, label='Validation loss')
+plt.legend(frameon=False)
 
 dataiter = iter(testloader)
 images, labels = next(dataiter)
