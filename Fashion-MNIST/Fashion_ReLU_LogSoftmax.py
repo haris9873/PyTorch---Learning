@@ -55,7 +55,6 @@ for e in range(epochs):
         #Training pass
         logps = model(images) #Log probabilities
         loss = criterion(logps, labels) #Calculate the Loss
-
         optimizer.zero_grad() #Zeroing Gradients
         loss.backward() 
         optimizer.step()
