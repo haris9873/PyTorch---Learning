@@ -40,8 +40,8 @@ def load_image(img_path, max_size=400, shape=None):
     
     return image
 #Import content and style images
-content = load_image('Style_Transfer_CNN/content.jpg').to(device)
-style = load_image('Style_Transfer_CNN/animehousestyle.jpg', shape=content.shape[-2:]).to(device) #reshape style image to match content image
+content = load_image('Style Tranfer CNN/content.jpg').to(device)
+style = load_image('Style Transfer CNN/animehousestyle.jpg', shape=content.shape[-2:]).to(device) #reshape style image to match content image
 
 #helper function to unnormalize and display an image and converting it from a Tensor image to a NumPy image for display
 def im_convert(tensor):
