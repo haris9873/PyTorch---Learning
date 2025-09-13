@@ -32,16 +32,16 @@ valid_size = 0.2
 # Data transform to convert data to a tensor and apply normalization
 # augment train and validation dataset with RandomHorizontalFlip and RandomRotation
 train_transform = transforms.Compose([
-    transforms.RandomHorizontalFlip(), # randomly flip and rotate
+    transforms.RandomHorizontalFlip(),  # randomly flip and rotate
     transforms.RandomRotation(10),
     transforms.ToTensor(),
     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-    ])
+])
 
 test_transform = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-    ])
+])
 
 # choose the training and test datasets
 train_data = datasets.CIFAR10('data', train=True,
@@ -62,33 +62,33 @@ valid_sampler = SubsetRandomSampler(valid_idx)
 
 # prepare data loaders (combine dataset and sampler)
 train_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size,
-    sampler=train_sampler, num_workers=num_workers)
-valid_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size, 
-    sampler=valid_sampler, num_workers=num_workers)
-test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size, 
-    num_workers=num_workers)
+                                           sampler=train_sampler, num_workers=num_workers)
+valid_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size,
+                                           sampler=valid_sampler, num_workers=num_workers)
+test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size,
+                                          num_workers=num_workers)
 
 # specify the image classes
-classes = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
-
+classes = ['airplane', 'automobile', 'bird', 'cat',
+           'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
 
 
 # define the cnn architecture
 class CNN(nn.Module):
     def __init__(self):
         super(CNN, self).__init__()
-         # convolutional layer (sees 32x32x3 image tensor)
+        # convolutional layer (sees 32x32x3 image tensor)
         self.conv1 = nn.Conv2d(3, 16, 3, padding=1)
         # convolutional layer (sees 16x16x16 tensor)
         self.conv2 = nn.Conv2d(16, 32, 3, padding=1)
         # convolutional layer (sees 8x8x32 tensor)
         self.conv3 = nn.Conv2d(32, 64, 3, padding=1)
         # max pooling layer that will down-sample the feature maps by 2x
-        self.pool = nn.MaxPool2d(2, 2) #kernel size, stride
+        self.pool = nn.MaxPool2d(2, 2)  # kernel size, stride
         # linear layer (64 * 4 * 4 -> 500), conv2d reduces imagage size to 16 x 16, then 8 x 8, then 4 x 4 after last pooling layer
-        self.fc1 = nn.Linear(64 * 4 * 4, 500) #depth = 4 * image size = 4 * 4
+        self.fc1 = nn.Linear(64 * 4 * 4, 500)  # depth = 4 * image size = 4 * 4
         # linear layer (500 -> 10)
-        self.fc2 = nn.Linear(500, 10) # 10 output classes
+        self.fc2 = nn.Linear(500, 10)  # 10 output classes
         # dropout layer (p=0.25) to prevent overfitting
         self.dropout = nn.Dropout(0.25)
 
@@ -108,27 +108,32 @@ class CNN(nn.Module):
         # add 2nd hidden layer, with relu activation function
         x = self.fc2(x)
         return x
-model = CNN()    
+
+
+model = CNN()
 print(model)
 # move tensors to GPU if CUDA is available
 if train_on_gpu:
     model.cuda()
 
-# specify loss function (categorical cross-entropy) 
-criterion = nn.CrossEntropyLoss() #useful for classification tasks
+# specify loss function (categorical cross-entropy)
+criterion = nn.CrossEntropyLoss()  # useful for classification tasks
 # specify optimizer
 optimizer = optim.SGD(model.parameters(), lr=0.01)
+# learning rate schedule
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+    optimizer, mode='min', factor=0.5, patience=2)
 # number of epochs to train the model
 n_epochs = 30
 # track change in validation loss
-valid_loss_min = np.inf 
+valid_loss_min = np.inf
 
 for epoch in range(1, n_epochs+1):
 
     # keep track of training and validation loss
     train_loss = 0.0
     valid_loss = 0.0
-    
+
     ###################
     # train the model #
     ###################
@@ -149,8 +154,8 @@ for epoch in range(1, n_epochs+1):
         optimizer.step()
         # update training loss
         train_loss += loss.item()*data.size(0)
-        
-    ######################    
+
+    ######################
     # validate the model #
     ######################
     model.eval()
@@ -162,28 +167,28 @@ for epoch in range(1, n_epochs+1):
         output = model(data)
         # calculate the batch loss
         loss = criterion(output, target)
-        # update average validation loss 
+        # update average validation loss
         valid_loss += loss.item()*data.size(0)
-    
+
     # calculate average losses
     train_loss = train_loss/len(train_loader.sampler)
     valid_loss = valid_loss/len(valid_loader.sampler)
-        
-    # print training/validation statistics 
+
+    # print training/validation statistics
     print('Epoch: {} \tTraining Loss: {:.6f} \tValidation Loss: {:.6f}'.format(
         epoch, train_loss, valid_loss))
-    
+
     # save model if validation loss has decreased
     if valid_loss <= valid_loss_min:
         print('Validation loss decreased ({:.6f} --> {:.6f}).  Saving model ...'.format(
-        valid_loss_min,
-        valid_loss))
+            valid_loss_min,
+            valid_loss))
         torch.save(model.state_dict(), 'model_cnn_cifar10.pt')
         valid_loss_min = valid_loss
 
-#load model with lowest validation loss
+# load model with lowest validation loss
 model.load_state_dict(torch.load('model_cnn_cifar10.pt'))
-#testing model
+# testing model
 # track test loss
 test_loss = 0.0
 class_correct = list(0. for i in range(10))
@@ -199,13 +204,14 @@ for data, target in test_loader:
     output = model(data)
     # calculate the batch loss
     loss = criterion(output, target)
-    # update test loss 
+    # update test loss
     test_loss += loss.item()*data.size(0)
     # convert output probabilities to predicted class
-    _, pred = torch.max(output, 1)    
+    _, pred = torch.max(output, 1)
     # compare predictions to true label
     correct_tensor = pred.eq(target.data.view_as(pred))
-    correct = np.squeeze(correct_tensor.numpy()) if not train_on_gpu else np.squeeze(correct_tensor.cpu().numpy())
+    correct = np.squeeze(correct_tensor.numpy()) if not train_on_gpu else np.squeeze(
+        correct_tensor.cpu().numpy())
     # calculate test accuracy for each object class
     for i in range(batch_size):
         label = target.data[i]
@@ -222,7 +228,8 @@ for i in range(10):
             classes[i], 100 * class_correct[i] / class_total[i],
             np.sum(class_correct[i]), np.sum(class_total[i])))
     else:
-        print('Test Accuracy of %5s: N/A (no training examples)' % (classes[i]))
+        print('Test Accuracy of %5s: N/A (no training examples)' %
+              (classes[i]))
 
 print('\nTest Accuracy (Overall): %2d%% (%2d/%2d)' % (
     100. * np.sum(class_correct) / np.sum(class_total),
@@ -241,27 +248,28 @@ if train_on_gpu:
 output = model(images)
 # convert output probabilities to predicted class
 _, preds_tensor = torch.max(output, 1)
-preds = np.squeeze(preds_tensor.numpy()) if not train_on_gpu else np.squeeze(preds_tensor.cpu().numpy())
+preds = np.squeeze(preds_tensor.numpy()) if not train_on_gpu else np.squeeze(
+    preds_tensor.cpu().numpy())
 
 # plot the images in the batch, along with predicted and true labels
 fig = plt.figure(figsize=(25, 4))
 for idx in np.arange(batch_size):
     ax = fig.add_subplot(2, int(batch_size/2), idx+1, xticks=[], yticks=[])
-       
+
     # Move tensor to CPU and convert to a NumPy array
     image = images[idx].cpu().numpy()
-    
+
     # Transpose image from (C, H, W) to (H, W, C) for Matplotlib
     image = image.transpose((1, 2, 0))
-    
-#un-normalize with:
+
+# un-normalize with:
     image = image * np.array((0.5, 0.5, 0.5)) + np.array((0.5, 0.5, 0.5))
-    
+
     # Display the image using Matplotlib's imshow
     ax.imshow(image)
-    
+
     # --- End of Changed Section ---
-    
+
     ax.set_title("{} ({})".format(classes[preds[idx]], classes[labels[idx]]),
-                  color=("green" if preds[idx]==labels[idx].item() else "red"))
-plt.show()))
+                 color=("green" if preds[idx] == labels[idx].item() else "red"))
+plt.show()
